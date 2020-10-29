@@ -1,5 +1,7 @@
-nRF24L01.c:15:6:reg_write	24	static
-nRF24L01.c:24:9:reg_read	24	static
-nRF24L01.c:34:6:read_Pipe_address	32	static
-nRF24L01.c:45:6:flush_TX	16	static
-nRF24L01.c:53:6:flush_RX	16	static
+nRF24L01.c:25:6:nRF24_RegWrite	16	static
+nRF24L01.c:45:9:nRF24_RegRead	16	static
+nRF24L01.c:61:6:read_Pipe_address	24	static
+nRF24L01.c:75:6:TX_config	24	static
+nRF24L01.c:86:6:Data_pipe_size	32	static
+nRF24L01.c:101:6:nRF24_FlushTX	16	static
+nRF24L01.c:113:6:nRF24_FlushRX	16	static

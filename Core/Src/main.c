@@ -9,10 +9,10 @@
   * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
@@ -25,8 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usbd_cdc_if.h"
-#include "nRF24L01.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,64 +51,6 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
-//void reg_write(uint8_t address, uint8_t value)
-//{
-//	uint8_t W_address = address + 0x20;	// Add 32 to register address to write
-//	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_RESET);	// Select slave
-//	HAL_SPI_Transmit(&hspi1, &W_address, 1, 1);
-//	HAL_SPI_Transmit(&hspi1, &value, 1, 1);
-//	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_SET);
-//};
-//
-//uint8_t reg_read(uint8_t address)
-//{
-//	uint8_t data;
-// 	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_RESET);	//Select slave
-//	HAL_SPI_Transmit(&hspi1, &address, 1, 1);
-//	HAL_SPI_Receive(&hspi1, &data, 1, 1);
-//	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_SET);
-//	return data;
-//};
-//
-//void read_Pipe_address(uint8_t pipe)
-//{
-//	uint8_t pipe_buffer[5];
-//	uint8_t Pipe_address = pipe + 0x0A;
-// 	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_RESET);	//Select slave
-// 	HAL_SPI_Transmit(&hspi1, &pipe, 1, 1);
-// 	HAL_SPI_Receive(&hspi1, pipe_buffer, 5, 10);
-//	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_SET);
-//	CDC_Transmit_FS(pipe_buffer, sizeof(pipe_buffer));
-//};
-
-void print_n24_registers()
-{
-	uint8_t reg_value;
-	for(int reg = 0; reg < 10; reg++)
-	{
-		reg_value = reg_read(reg);
-		HAL_Delay(10);
-		CDC_Transmit_FS(&reg_value, sizeof(reg_value));
-		CDC_Transmit_FS((uint8_t*)("\n"), sizeof("\n"));
-	}
-
-	for(int pipe = 0; pipe < 7; pipe++)
-	{
-		read_Pipe_address(pipe);
-		HAL_Delay(10);
-		CDC_Transmit_FS((uint8_t*)("\n"), sizeof("\n"));
-	}
-
-	for(int reg = 17; reg < 24; reg++)
-	{
-		reg_value = reg_read(reg);
-		HAL_Delay(10);
-		CDC_Transmit_FS(&reg_value, sizeof(reg_value));
-		CDC_Transmit_FS((uint8_t*)("\n"), sizeof("\n"));
-	}
-
-}
 
 /* USER CODE END PFP */
 
@@ -150,25 +91,6 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-    HAL_GPIO_WritePin(ce_GPIO_Port, ce_Pin, GPIO_PIN_RESET);
-  	HAL_Delay(20);
-  	HAL_GPIO_WritePin(csn_GPIO_Port, csn_Pin, GPIO_PIN_SET);
-
-  	// RESET all register
-//  	reg_write(0x00, 0x08);
-//	reg_write(0x04, 0x03);
-//	reg_write(0x06, 0x0E);
-
-
-
-	// CONFIG TX
-  	reg_write(0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
-	reg_write(0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
-	reg_write(0x04, 0xFF); // 15 Retry, 4ms wait
-	reg_write(0x06, 0x08); // -18dBm, 2Mbps
-
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -178,11 +100,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	  uint8_t addr_1 = reg_read(0x00);
-	  uint8_t addr_2 = reg_read(0x04);
-	  uint8_t addr_3 = reg_read(0x06);
-	  //print_n24_registers();
   }
   /* USER CODE END 3 */
 }
