@@ -22,7 +22,7 @@ void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode)
 	HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_SET);
 	nRF24_QSconfig(nRF24_H);
 
-	if(!TX_mode == 0)
+	if(!TX_mode)
 	{
 		nRF24_RegWrite(nRF24_H, 0x00, 0x0B); // PRX, Power ON, CRC, 1 byte
 	}
@@ -33,14 +33,14 @@ void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode)
 
 void nRF24_QSconfig(struct nRF24_Handle nRF24_H)
 {
-	  	nRF24_RegWrite(nRF24_H, 0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
-		nRF24_RegWrite(nRF24_H, 0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
-		nRF24_RegWrite(nRF24_H, 0x04, 0xFF); // 15 Retry, 4ms wait
-		nRF24_RegWrite(nRF24_H, 0x06, 0x08); // -18dBm, 2Mbp
-		for (uint8_t i = 0x11; i < 0x17 ; i++)	// All pipe size = 1 byte
-		{
-			nRF24_RegRead(nRF24_H, i);
-		}
+	nRF24_RegWrite(nRF24_H, 0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
+	nRF24_RegWrite(nRF24_H, 0x00, 0x0A); // PTX, Power ON, CRC, 1 byte
+	nRF24_RegWrite(nRF24_H, 0x04, 0xFF); // 15 Retry, 4ms wait
+	nRF24_RegWrite(nRF24_H, 0x06, 0x08); // -18dBm, 2Mbp
+	for (uint8_t i = 0x11; i < 0x17 ; i++)	// All pipe size = 1 byte
+	{
+		nRF24_RegRead(nRF24_H, i);
+	}
 };
 
 

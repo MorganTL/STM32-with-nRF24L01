@@ -50,8 +50,8 @@ NRF24L01.bin \
 all: NRF24L01.elf secondary-outputs
 
 # Tool invocations
-NRF24L01.elf: $(OBJS) $(USER_OBJS) E:\tszlok\OneDrive\Documents\HKU\Coding\ Project\STM32\nRF24L01\STM32F103C8TX_FLASH.ld
-	arm-none-eabi-gcc -o "NRF24L01.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"E:\tszlok\OneDrive\Documents\HKU\Coding Project\STM32\nRF24L01\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="NRF24L01.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+NRF24L01.elf: $(OBJS) $(USER_OBJS) C:\Users\tszlo\OneDrive\Documents\HKU\Coding\ Project\STM32\nRF24L01\STM32F103C8TX_FLASH.ld
+	arm-none-eabi-gcc -o "NRF24L01.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\tszlo\OneDrive\Documents\HKU\Coding Project\STM32\nRF24L01\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="NRF24L01.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

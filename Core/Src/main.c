@@ -22,6 +22,8 @@
 #include "spi.h"
 #include "usb_device.h"
 #include "gpio.h"
+#include "nRF24L01.h"
+#include "usbd_cdc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -91,6 +93,17 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+
+	struct nRF24_Handle H_n24;
+	H_n24.hspi = &hspi1;
+	H_n24.CSN_GPIO_Port = csn_GPIO_Port;
+	H_n24.CSN_Pin = csn_Pin;
+	H_n24.CE_GPIO_Port = ce_GPIO_Port;
+	H_n24.CE_Pin = ce_Pin;
+	H_n24.IQR_GPIO_Port = irq_GPIO_Port;
+	H_n24.IQR_Pin = irq_Pin;
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -98,6 +111,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+
+	  nRF24_QS(H_n24, 1);
+
+	  uint8_t addr0 = nRF24_RegRead(H_n24, 0x00);
+	  uint8_t addr1 = nRF24_RegRead(H_n24, 0x04);
+	  uint8_t addr2 = nRF24_RegRead(H_n24, 0x06);
+
+
+
 
     /* USER CODE BEGIN 3 */
   }

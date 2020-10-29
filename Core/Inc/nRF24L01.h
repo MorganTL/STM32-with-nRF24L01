@@ -16,7 +16,7 @@
 #define p2size_addr = 0x13
 #define p3size_addr = 0x14
 #define p4size_addr = 0x15
-#define p5size_addr= 0x16
+#define p5size_addr = 0x16
 
 
 
@@ -28,15 +28,17 @@
 struct nRF24_Handle
 {
 	SPI_HandleTypeDef *hspi;
-	GPIO_TypeDef *CSN_GPIO_Port;
+	GPIO_TypeDef *CSN_GPIO_Port;	// Slave select pin (Active High)
 	uint16_t CSN_Pin;
-	GPIO_TypeDef *CE_GPIO_Port;
+	GPIO_TypeDef *CE_GPIO_Port;		// Pin that activate TX, RX or Standby II mode (Active High)
 	uint16_t CE_Pin;
+	GPIO_TypeDef *IQR_GPIO_Port;	// Interrupt Pin (Active Low)
+	uint16_t IQR_Pin;
 };
 
 
 // Quick Start Functions
-void nRF24_QS(struct nRF24_Handle nRF24_H);
+void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode);
 void nRF24_QSconfig(struct nRF24_Handle nRF24_H);
 
 // High Level Function
