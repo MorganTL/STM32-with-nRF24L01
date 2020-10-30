@@ -11,12 +11,6 @@
 #include "stm32f1xx_hal.h"
 
 
-#define p0size_addr = 0x11
-#define p1size_addr = 0x12
-#define p2size_addr = 0x13
-#define p3size_addr = 0x14
-#define p4size_addr = 0x15
-#define p5size_addr = 0x16
 
 
 
@@ -28,11 +22,11 @@
 struct nRF24_Handle
 {
 	SPI_HandleTypeDef *hspi;
-	GPIO_TypeDef *CSN_GPIO_Port;	// Slave select pin (Active High)
+	GPIO_TypeDef *CSN_GPIO_Port;	// Slave select OUTPUT pin (Active High)
 	uint16_t CSN_Pin;
-	GPIO_TypeDef *CE_GPIO_Port;		// Pin that activate TX, RX or Standby II mode (Active High)
+	GPIO_TypeDef *CE_GPIO_Port;		// OUTPUT Pin that activate TX, RX or Standby II mode (Active High)
 	uint16_t CE_Pin;
-	GPIO_TypeDef *IQR_GPIO_Port;	// Interrupt Pin (Active Low)
+	GPIO_TypeDef *IQR_GPIO_Port;	// Interrupt PULL UP INPUT PIN (Active Low)
 	uint16_t IQR_Pin;
 };
 
@@ -42,24 +36,30 @@ void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode);
 void nRF24_QSconfig(struct nRF24_Handle nRF24_H);
 
 // High Level Function
+
+void nRF24_TX_WritePayload(struct nRF24_Handle nRF24_H, uint8_t* payload, uint8_t payload_size, uint8_t write_type);
+void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all);
+int nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H);
+void nRF24_RX_ReadPayload(struct nRF24_Handle nRF24_H, uint8_t* rx_buffer, uint8_t buffer_size);
+
+
+void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr);
+void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr);
+
+// TODO: Finish the following functions
 void nRF24_SetXXX();
-void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t size);
+
 
 int nRF24_GetPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr);
 
-void nRF24_TX_LoadPayload(struct nRF24_Handle nRF24_H);
-void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t byte);
-int nRF24_Avaliable(struct nRF24_Handle nRF24_H);
-void nRF24_RX_ReadPipe(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t* rx_buffer, uint8_t buffer_size);
+
+void nRF24_ConnectionCheck(struct nRF24_Handle nRF24_H);
 
 
 // Low Level Functions
+
 void nRF24_RegWrite(struct nRF24_Handle nRF24_H, uint8_t address, uint8_t value);
 uint8_t nRF24_RegRead(struct nRF24_Handle nRF24_H, uint8_t address);
-
-
-
-
 void nRF24_FlushTX(struct nRF24_Handle nRF24_H);
 void nRF24_FlushRX(struct nRF24_Handle nRF24_H);
 

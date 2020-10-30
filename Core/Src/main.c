@@ -103,6 +103,16 @@ int main(void)
 	H_n24.IQR_GPIO_Port = irq_GPIO_Port;
 	H_n24.IQR_Pin = irq_Pin;
 
+	nRF24_QS(H_n24, 1);
+	nRF24_FlushRX(H_n24);
+	nRF24_FlushTX(H_n24);
+
+
+//	uint8_t rx_addr[5] = {0xE7, 0xE7, 0xE7, 0xE7, 0xE7};
+//	uint8_t tx_addr[5] = {0xE7, 0xE7, 0xE7, 0xE7, 0xE7};
+
+//	nRF24_SetDataPipeADDR(H_n24, 0x0A, rx_addr);
+//	nRF24_SetDataPipeADDR(H_n24, 0x10, tx_addr);
 
   /* USER CODE END 2 */
 
@@ -112,13 +122,34 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-	  nRF24_QS(H_n24, 1);
-
-	  uint8_t addr0 = nRF24_RegRead(H_n24, 0x00);
-	  uint8_t addr1 = nRF24_RegRead(H_n24, 0x04);
-	  uint8_t addr2 = nRF24_RegRead(H_n24, 0x06);
 
 
+	  uint8_t addr0 = nRF24_RegRead(H_n24, 0x00);	// Should = 0x11 or 0x11
+	  uint8_t addr2 = nRF24_RegRead(H_n24, 0x02);	// Should = 0x02 (For frequency )
+	  uint8_t addr3 = nRF24_RegRead(H_n24, 0x03);	// Should = 0x03
+	  uint8_t addr4 = nRF24_RegRead(H_n24, 0x04);	// Should = 0xFF / 255
+	  uint8_t addr5 = nRF24_RegRead(H_n24, 0x05);	// Should = 0x02 / 2
+	  uint8_t addr6 = nRF24_RegRead(H_n24, 0x06);	// Should = 0x08
+	  uint8_t pipe0_size = nRF24_RegRead(H_n24, 0x11);
+	  uint8_t addr17 = nRF24_RegRead(H_n24, 0x17);
+	  nRF24_RegWrite(H_n24, 0x07, 0x70);		// Clear interrupt
+
+	  uint8_t rx_addr[5];
+	  nRF24_GetDataPipeADDR(H_n24, 0x0A, rx_addr);	// the pipe address should be 0xE7E7E7E7E7
+	  uint8_t tx_addr[5];
+	  nRF24_GetDataPipeADDR(H_n24, 0x10, tx_addr);
+
+
+	  uint8_t W_TX_Payload = 0xA0;
+
+	  uint8_t Data = 0x14;
+
+	  nRF24_TX_WritePayload(H_n24, &Data, sizeof(Data), W_TX_Payload);
+
+	  nRF24_TX_SendPayload(H_n24, 0);
+
+//	  nRF24_FlushTX(H_n24);
+	  HAL_Delay(1000);
 
 
     /* USER CODE BEGIN 3 */
