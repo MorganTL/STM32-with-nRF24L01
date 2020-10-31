@@ -33,6 +33,7 @@ const uint8_t p3size_addr = 0x14;
 const uint8_t p4size_addr = 0x15;
 const uint8_t p5size_addr = 0x16;
 const uint8_t FIFO_STATUS = 0x17;
+const uint8_t FEATURE = 0x1D;
 
 
 
@@ -47,15 +48,25 @@ void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode)
 	HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_SET);
 	nRF24_QSconfig(nRF24_H);
 
+	nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x03);	// Open Port 0,1
+	nRF24_RegWrite(nRF24_H, p0size_addr, 0x02);
+	nRF24_RegWrite(nRF24_H, p1size_addr, 0x01);
+
 	nRF24_FlushTX(nRF24_H);
 	if(!TX_mode)
 	{
 		nRF24_RegWrite(nRF24_H, CONFIG, 0x0B); // PRX, Power ON, CRC, 1 byte
+		nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x02);	// Open Port 0 and close 1
+
 		nRF24_FlushRX(nRF24_H);
+
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// RX mode, Start listening
+		HAL_Delay(2);		// 130us delay before listening
 	}
 
 	nRF24_RegWrite(nRF24_H, STATUS, 0x70);	// Clear TX/RX Interrupt
+//	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// RX or TX mode
+
 
 };
 
@@ -66,11 +77,16 @@ void nRF24_QSconfig(struct nRF24_Handle nRF24_H)
 {
 	//nRF24_RegWrite(nRF24_H, CONFIG, 0x0A); // PTX, Power ON, CRC, 1 byte
 	nRF24_RegWrite(nRF24_H, CONFIG, 0x0A); // PTX, Power ON, CRC, 1 byte
-	nRF24_RegWrite(nRF24_H, SETUP_RETR, 0xFF); // 15 Retry, 4ms wait
-	nRF24_RegWrite(nRF24_H, RF_SETUP, 0x0E); // 0dBm, 2Mbp
-	for (uint8_t i_addr = 0x11; i_addr < 0x17 ; i_addr++)	// All pipe size = 2 byte
+	nRF24_RegWrite(nRF24_H, SETUP_AW, 3);	// 5 byte channel address width
+	nRF24_RegWrite(nRF24_H, SETUP_RETR, 0xFF); // 15 Retry, 0.25 ms wait (0x0F -> 0xFF 4ms wait)
+	nRF24_RegWrite(nRF24_H, RF_CH, 0x20); // 2400 + 0x11 Mhz
+	nRF24_RegWrite(nRF24_H, RF_SETUP, 0x0E); // 0dBm, 2Mbp (0x0E)
+
+	nRF24_RegWrite(nRF24_H, FEATURE, 0x00);		// Dynamic payload length + Payload with ARK 0x06 (Default = 0x00)
+
+	for (uint8_t i_addr = 0x11; i_addr < 0x17 ; i_addr++)	// Close all port
 	{
-		nRF24_RegWrite(nRF24_H, i_addr, 0x02);
+		nRF24_RegWrite(nRF24_H, i_addr, 0x00);
 	}
 };
 
@@ -120,11 +136,8 @@ void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all)
 	if(!send_all && !paydload_empty)
 	{
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);
-		HAL_Delay(10);	// A 10us high pulse to send on packet
-		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
-
-		nRF24_RegWrite(nRF24_H, STATUS, 0x70);	// Clear TX/RX Interrupt
+		HAL_Delay(20);	// TODO: Find prefect time!!
+//		nRF24_RegWrite(nRF24_H, STATUS, 0x70);	// Clear TX/RX Interrupt
 	}
 	else if(!paydload_empty)
 	{
@@ -134,6 +147,16 @@ void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all)
 	{
 		// TODO: payload empty ERROR
 	}
+
+	uint8_t TX_DS, MAX_RT;
+	do	// Check whether the packet is sent or lock in transmission
+	{
+		TX_DS = ((nRF24_RegRead(nRF24_H, STATUS) & 0x20) >> 0x05);
+		MAX_RT = ((nRF24_RegRead(nRF24_H, STATUS) & 0x10) >> 0x04);
+	} while(!TX_DS && !MAX_RT);
+
+	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);
+
 };
 
 
@@ -141,7 +164,7 @@ void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all)
 /*
  *	TODO: FIll in comments
  */
-int nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H)
+uint8_t nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H)
 {
 	return (HAL_GPIO_ReadPin(nRF24_H.IQR_GPIO_Port, nRF24_H.IQR_Pin));
 };
@@ -151,16 +174,42 @@ int nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H)
  */
 void nRF24_RX_ReadPayload(struct nRF24_Handle nRF24_H, uint8_t* rx_buffer, uint8_t buffer_size)
 {
-	uint8_t rx_datasize = nRF24_RegRead(nRF24_H, R_RX_PL_WID);		// Get the data len
-	if( nRF24_RX_DataAvaliable(nRF24_H) && sizeof(rx_buffer) == rx_datasize )
+	uint8_t RX_Empty = (nRF24_RegRead(nRF24_H, 0x17) & 0x01);	// Data in FIFO
+	uint8_t R_RX = 0x60;
+	if(!RX_Empty)
 	{
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);	// Stop listening
 		HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_RESET);	// Select slave
-		HAL_SPI_Transmit(nRF24_H.hspi, &(R_RX_Payload), 1, 1);
+		HAL_SPI_Transmit(nRF24_H.hspi, &(R_RX_Payload), sizeof(R_RX_Payload), 1);
 		HAL_SPI_Receive(nRF24_H.hspi, rx_buffer, buffer_size, 20);
 		HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_SET);	// Deselect slave
+		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// Start listening
+		nRF24_RegWrite(nRF24_H, 0x07, 0x70);		// Clear interrupt
 	}
 };
+
+/*
+ *	TODO: Fill in comments
+ */
+uint8_t nRF24_GetPayloadPipe(struct nRF24_Handle nRF24_H)
+{
+	uint8_t pipe_no = nRF24_RegRead(nRF24_H, 0x17);
+	pipe_no = ( (pipe_no & 0x0E) >> 1);
+	return pipe_no;
+};
+
+/*
+ *
+ */
+uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H)
+{
+	uint8_t Temp = nRF24_RegRead(nRF24_H, 0x17);
+	return (Temp & 0x01);
+}
+
+
+
+
 
 /*
  *	@brief Write the 5 byte data pipe identify address to reg_addr
@@ -214,7 +263,20 @@ void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_
 	}
 };
 
-
+/*
+ *	@brief Change the payload size of the data pipe (used in RX mode)
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info
+ *
+ *	@param pipe_addr: from 0x11 to 0x16 (TODO: change this to enum)
+ *
+ *	@param pipe_size: 0 - 32 bytes (0: Pipe is closed)
+ *
+ */
+void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t pipe_size)
+{
+	nRF24_RegWrite(nRF24_H, pipe_size, pipe_size);
+}
 
 
 

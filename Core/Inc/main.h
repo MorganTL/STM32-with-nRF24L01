@@ -70,6 +70,12 @@ void Error_Handler(void);
 #define csn_GPIO_Port GPIOB
 #define ce_Pin GPIO_PIN_1
 #define ce_GPIO_Port GPIOB
+#define ce_RX_Pin GPIO_PIN_8
+#define ce_RX_GPIO_Port GPIOA
+#define csn_RX_Pin GPIO_PIN_9
+#define csn_RX_GPIO_Port GPIOA
+#define irq_RX_Pin GPIO_PIN_10
+#define irq_RX_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

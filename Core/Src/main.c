@@ -22,12 +22,11 @@
 #include "spi.h"
 #include "usb_device.h"
 #include "gpio.h"
-#include "nRF24L01.h"
-#include "usbd_cdc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc.h"
+#include "nRF24L01.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -91,28 +90,44 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USB_DEVICE_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
+  	// TX init
+	struct nRF24_Handle TX_n24_H;
+	TX_n24_H.hspi = &hspi1;
+	TX_n24_H.CSN_GPIO_Port = csn_GPIO_Port;
+	TX_n24_H.CSN_Pin = csn_Pin;
+	TX_n24_H.CE_GPIO_Port = ce_GPIO_Port;
+	TX_n24_H.CE_Pin = ce_Pin;
+	TX_n24_H.IQR_GPIO_Port = irq_GPIO_Port;
+	TX_n24_H.IQR_Pin = irq_Pin;
 
-	struct nRF24_Handle H_n24;
-	H_n24.hspi = &hspi1;
-	H_n24.CSN_GPIO_Port = csn_GPIO_Port;
-	H_n24.CSN_Pin = csn_Pin;
-	H_n24.CE_GPIO_Port = ce_GPIO_Port;
-	H_n24.CE_Pin = ce_Pin;
-	H_n24.IQR_GPIO_Port = irq_GPIO_Port;
-	H_n24.IQR_Pin = irq_Pin;
+	nRF24_QS(TX_n24_H, 1);
+	nRF24_FlushRX(TX_n24_H);
+	nRF24_FlushTX(TX_n24_H);
 
-	nRF24_QS(H_n24, 1);
-	nRF24_FlushRX(H_n24);
-	nRF24_FlushTX(H_n24);
+	// RX init
+	struct nRF24_Handle RX_n24_H;
+	RX_n24_H.hspi = &hspi2;
+	RX_n24_H.CSN_GPIO_Port = csn_RX_GPIO_Port;
+	RX_n24_H.CSN_Pin = csn_RX_Pin;
+	RX_n24_H.CE_GPIO_Port = ce_RX_GPIO_Port;
+	RX_n24_H.CE_Pin = ce_RX_Pin;
+	RX_n24_H.IQR_GPIO_Port = irq_RX_GPIO_Port;
+	RX_n24_H.IQR_Pin = irq_RX_Pin;
 
+	nRF24_QS(RX_n24_H, 0);
+	nRF24_FlushRX(RX_n24_H);
+	nRF24_FlushTX(RX_n24_H);
+	uint8_t rx_data = 0x00;
+	uint8_t Data = 0x14;
 
-//	uint8_t rx_addr[5] = {0xE7, 0xE7, 0xE7, 0xE7, 0xE7};
-//	uint8_t tx_addr[5] = {0xE7, 0xE7, 0xE7, 0xE7, 0xE7};
-
-//	nRF24_SetDataPipeADDR(H_n24, 0x0A, rx_addr);
-//	nRF24_SetDataPipeADDR(H_n24, 0x10, tx_addr);
+	  // Channel Address management
+	uint8_t pipe_addr[5] = {0x78, 0x78, 0x78, 0x78, 0x78};		// Set channel address as 0x7878787878
+	nRF24_SetDataPipeADDR(TX_n24_H, 0x0A, pipe_addr);	//PTX RX pipe 0
+	nRF24_SetDataPipeADDR(TX_n24_H, 0x10, pipe_addr);	//PTX TX_ADD
+	nRF24_SetDataPipeADDR(RX_n24_H, 0x0B, pipe_addr);	//PRX RX pipe 1
 
   /* USER CODE END 2 */
 
@@ -122,37 +137,23 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+    /* USER CODE BEGIN 3 */
 
+	  // TX part (SPI 1)
 
-	  uint8_t addr0 = nRF24_RegRead(H_n24, 0x00);	// Should = 0x11 or 0x11
-	  uint8_t addr2 = nRF24_RegRead(H_n24, 0x02);	// Should = 0x02 (For frequency )
-	  uint8_t addr3 = nRF24_RegRead(H_n24, 0x03);	// Should = 0x03
-	  uint8_t addr4 = nRF24_RegRead(H_n24, 0x04);	// Should = 0xFF / 255
-	  uint8_t addr5 = nRF24_RegRead(H_n24, 0x05);	// Should = 0x02 / 2
-	  uint8_t addr6 = nRF24_RegRead(H_n24, 0x06);	// Should = 0x08
-	  uint8_t pipe0_size = nRF24_RegRead(H_n24, 0x11);
-	  uint8_t addr17 = nRF24_RegRead(H_n24, 0x17);
-	  nRF24_RegWrite(H_n24, 0x07, 0x70);		// Clear interrupt
-
-	  uint8_t rx_addr[5];
-	  nRF24_GetDataPipeADDR(H_n24, 0x0A, rx_addr);	// the pipe address should be 0xE7E7E7E7E7
-	  uint8_t tx_addr[5];
-	  nRF24_GetDataPipeADDR(H_n24, 0x10, tx_addr);
-
-
+	  nRF24_RegWrite(TX_n24_H, 0x07, 0x70);		// Clear interrupt
+	  Data = Data % 255;
+	  Data++;
 	  uint8_t W_TX_Payload = 0xA0;
 
-	  uint8_t Data = 0x14;
+	  nRF24_TX_WritePayload(TX_n24_H, &Data, sizeof(Data), W_TX_Payload);
+	  nRF24_TX_SendPayload(TX_n24_H, 0);
 
-	  nRF24_TX_WritePayload(H_n24, &Data, sizeof(Data), W_TX_Payload);
+	  uint8_t RX_Empty = (nRF24_RegRead(RX_n24_H, 0x17));	// Data in FIFO
+	  nRF24_FlushTX(TX_n24_H);
+	  // RX part (SPI 2)
+	  nRF24_RX_ReadPayload(RX_n24_H, &rx_data, sizeof(rx_data));
 
-	  nRF24_TX_SendPayload(H_n24, 0);
-
-//	  nRF24_FlushTX(H_n24);
-	  HAL_Delay(1000);
-
-
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
