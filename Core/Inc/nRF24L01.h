@@ -40,25 +40,20 @@ void nRF24_QSconfig(struct nRF24_Handle nRF24_H);
 void nRF24_TX_WritePayload(struct nRF24_Handle nRF24_H, uint8_t* payload, uint8_t payload_size, uint8_t write_type);
 void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all);
 
-
 uint8_t nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H);
 void nRF24_RX_ReadPayload(struct nRF24_Handle nRF24_H, uint8_t* rx_buffer, uint8_t buffer_size);
-uint8_t nRF24_GetPayloadPipe(struct nRF24_Handle nRF24_H);
+uint8_t nRF24_RX_GetPayloadPipe(struct nRF24_Handle nRF24_H);
 uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H);
 
-
+// Config
 void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr);
 void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr);
+
 void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t pipe_size);
+uint8_t nRF24_GetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr);
 
 
 // TODO: Finish the following functions
-void nRF24_SetXXX();
-
-
-int nRF24_GetPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr);
-
-
 void nRF24_ConnectionCheck(struct nRF24_Handle nRF24_H);
 
 

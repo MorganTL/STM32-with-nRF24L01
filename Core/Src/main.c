@@ -123,11 +123,14 @@ int main(void)
 	uint8_t rx_data = 0x00;
 	uint8_t Data = 0x14;
 
-	  // Channel Address management
+	// Channel Address management
 	uint8_t pipe_addr[5] = {0x78, 0x78, 0x78, 0x78, 0x78};		// Set channel address as 0x7878787878
 	nRF24_SetDataPipeADDR(TX_n24_H, 0x0A, pipe_addr);	//PTX RX pipe 0
 	nRF24_SetDataPipeADDR(TX_n24_H, 0x10, pipe_addr);	//PTX TX_ADD
 	nRF24_SetDataPipeADDR(RX_n24_H, 0x0B, pipe_addr);	//PRX RX pipe 1
+
+	// Set RX data pipe size
+	nRF24_SetDataPipeSize(RX_n24_H, 0x0B, 2);
 
   /* USER CODE END 2 */
 
@@ -151,6 +154,7 @@ int main(void)
 
 	  uint8_t RX_Empty = (nRF24_RegRead(RX_n24_H, 0x17));	// Data in FIFO
 	  nRF24_FlushTX(TX_n24_H);
+
 	  // RX part (SPI 2)
 	  nRF24_RX_ReadPayload(RX_n24_H, &rx_data, sizeof(rx_data));
 

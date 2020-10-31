@@ -36,74 +36,88 @@ const uint8_t FIFO_STATUS = 0x17;
 const uint8_t FEATURE = 0x1D;
 
 
-
+void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode)
 /*
  *  @brief Power on and set up all the necessary configs for fast prototyping
+ *  	   RX: pipe 1 is used for recieving payload from TX
+ *  	   TX: pipe 0 is used for auto ACK if two or more bytes are transmitted
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
+ *	@param TX_mode: 0 = RX mode, 1 = TX mode
+ *
  */
-void nRF24_QS(struct nRF24_Handle nRF24_H, uint8_t TX_mode)
 {
-	HAL_Delay(100);		// 100ms Power on time
-	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);	// Standby I mode
-	HAL_Delay(20);
-	HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_SET);
 	nRF24_QSconfig(nRF24_H);
+	HAL_Delay(150);		// 150ms Power on time
+	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);	// Standby I mode
+	HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_SET);
 
-	nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x03);	// Open Port 0,1
-	nRF24_RegWrite(nRF24_H, p0size_addr, 0x02);
-	nRF24_RegWrite(nRF24_H, p1size_addr, 0x01);
 
-	nRF24_FlushTX(nRF24_H);
-	if(!TX_mode)
+	if(TX_mode)
 	{
-		nRF24_RegWrite(nRF24_H, CONFIG, 0x0B); // PRX, Power ON, CRC, 1 byte
-		nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x02);	// Open Port 0 and close 1
+		nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x03);	// Open Port 0,1
+		nRF24_RegWrite(nRF24_H, CONFIG, 0x0A);		// PTX, Power ON, CRC, 1 byte
+		nRF24_RegWrite(nRF24_H, p0size_addr, 0x02);
+		nRF24_RegWrite(nRF24_H, p1size_addr, 0x01);		// !!!MUST BE EQUAL TO DATA LENGTH
 
+		nRF24_FlushTX(nRF24_H);
 		nRF24_FlushRX(nRF24_H);
+	}
+	else
+	{
+		nRF24_RegWrite(nRF24_H, EN_RXADDR, 0x02);	// Open Port 0 and close 1
+		nRF24_RegWrite(nRF24_H, CONFIG, 0x0B);	 // PRX, Power ON, CRC, 1 byte
+		nRF24_RegWrite(nRF24_H, p0size_addr, 0x02);
+		nRF24_RegWrite(nRF24_H, p1size_addr, 0x01);		// !!!MUST BE EQUAL TO DATA LENGTH
 
+		nRF24_FlushTX(nRF24_H);
+		nRF24_FlushRX(nRF24_H);
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// RX mode, Start listening
 		HAL_Delay(2);		// 130us delay before listening
 	}
 
 	nRF24_RegWrite(nRF24_H, STATUS, 0x70);	// Clear TX/RX Interrupt
-//	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// RX or TX mode
-
 
 };
 
+
+void nRF24_QSconfig(struct nRF24_Handle nRF24_H)
 /*
  *  @brief Set up all the necessary configs for fast prototyping
+ *
+ *  @param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
  */
-void nRF24_QSconfig(struct nRF24_Handle nRF24_H)
 {
-	//nRF24_RegWrite(nRF24_H, CONFIG, 0x0A); // PTX, Power ON, CRC, 1 byte
-	nRF24_RegWrite(nRF24_H, CONFIG, 0x0A); // PTX, Power ON, CRC, 1 byte
-	nRF24_RegWrite(nRF24_H, SETUP_AW, 3);	// 5 byte channel address width
-	nRF24_RegWrite(nRF24_H, SETUP_RETR, 0xFF); // 15 Retry, 0.25 ms wait (0x0F -> 0xFF 4ms wait)
+	HAL_Delay(100);		// 100ms Power on reset
+	nRF24_RegWrite(nRF24_H, SETUP_AW, 0x03);	// 5 byte channel address width
+	nRF24_RegWrite(nRF24_H, SETUP_RETR, 0xFF); // 15 Retry, 4 ms wait
 	nRF24_RegWrite(nRF24_H, RF_CH, 0x20); // 2400 + 0x11 Mhz
 	nRF24_RegWrite(nRF24_H, RF_SETUP, 0x0E); // 0dBm, 2Mbp (0x0E)
+	nRF24_RegWrite(nRF24_H, FEATURE, 0x00);		// Disable Dynamic Payload Length & Payload with ARK
 
-	nRF24_RegWrite(nRF24_H, FEATURE, 0x00);		// Dynamic payload length + Payload with ARK 0x06 (Default = 0x00)
-
-	for (uint8_t i_addr = 0x11; i_addr < 0x17 ; i_addr++)	// Close all port
+	for (uint8_t i_addr = 0x11; i_addr < 0x17 ; i_addr++)	// All pipe are closed (allow 0 byte though)
 	{
 		nRF24_RegWrite(nRF24_H, i_addr, 0x00);
 	}
 };
 
+
+void nRF24_TX_WritePayload(struct nRF24_Handle nRF24_H, uint8_t* payload, uint8_t payload_size, uint8_t write_type)
 /*
  *  @brief Load Payload into TX FIFO. If TX FIFO contains more than one payloads,
  *		   the payloads are handled in a First in, First out principle.
  *
  * 	@param nRF24_H: nRF24 handler which contains all necessary pins info.
  *
- *  @param payload: a 1 to 32 byte data packet
+ *  @param payload: a 1 to 32 byte data packet (!MUST BE DIFFERENT FROM THE LAST PAYLOAD!)
  *
- *  @param payload_size: 1 to 32 byte
+ *  @param payload_size: 1 to 32 byte  (!MUST BE the same as the RX pipe size!)
  *
  *  @param write_type: 0xA0 (w/ ARK) or 0xB0 (w/o ARK)
  *
  */
-void nRF24_TX_WritePayload(struct nRF24_Handle nRF24_H, uint8_t* payload, uint8_t payload_size, uint8_t write_type)
 {
 	if (write_type != 0xA0 || write_type != 0xB0)
 	{
@@ -126,57 +140,78 @@ void nRF24_TX_WritePayload(struct nRF24_Handle nRF24_H, uint8_t* payload, uint8_
 
 
 };
-/*
- *	TODO: Fill in comments
- */
+
+
 void nRF24_TX_SendPayload(struct nRF24_Handle nRF24_H, uint8_t send_all)
+/*
+ *  @brief Load Payload into TX FIFO. If TX FIFO contains more than one payloads,
+ *		   the payloads are handled in a First in, First out principle.
+ *
+ * 	@param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
+ *  @param send_all: 1 = send all payload in TX FIFO
+ *
+ */
 {
 
-	uint8_t paydload_empty = ((nRF24_RegRead(nRF24_H, FIFO_STATUS) & 0x10) >> 4); // Get the TX FIFO empty flag
-	if(!send_all && !paydload_empty)
+	uint8_t payload_empty = ((nRF24_RegRead(nRF24_H, FIFO_STATUS) & 0x10) >> 4); // Get the TX FIFO empty flag
+	if(!send_all && !payload_empty)
 	{
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);
-		HAL_Delay(20);	// TODO: Find prefect time!!
-//		nRF24_RegWrite(nRF24_H, STATUS, 0x70);	// Clear TX/RX Interrupt
+		HAL_Delay(20);
 	}
-	else if(!paydload_empty)
+	else if(!payload_empty)
 	{
-		// TODO: send all packets
+		do
+		{
+			payload_empty = ((nRF24_RegRead(nRF24_H, FIFO_STATUS) & 0x10) >> 4); // Hold CE pin high, until TX FIFO is empty
+		}while(!payload_empty);
 	}
 	else
 	{
 		// TODO: payload empty ERROR
 	}
 
-	uint8_t TX_DS, MAX_RT;
-	do	// Check whether the packet is sent or lock in transmission
+	uint8_t payload_sent, reach_max_retry;
+	do	// Ensure the payload is either sent or lost in transmission
 	{
-		TX_DS = ((nRF24_RegRead(nRF24_H, STATUS) & 0x20) >> 0x05);
-		MAX_RT = ((nRF24_RegRead(nRF24_H, STATUS) & 0x10) >> 0x04);
-	} while(!TX_DS && !MAX_RT);
-
-	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);
+		payload_sent = ((nRF24_RegRead(nRF24_H, STATUS) & 0x20) >> 0x05);
+		reach_max_retry = ((nRF24_RegRead(nRF24_H, STATUS) & 0x10) >> 0x04);		// also be HIGH If payload is one byte
+	} while(!payload_sent && !reach_max_retry);
+	HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);		// Go back to Standby I
 
 };
 
 
 
-/*
- *	TODO: FIll in comments
- */
+
 uint8_t nRF24_RX_DataAvaliable(struct nRF24_Handle nRF24_H)
+/*
+ *	@brief Check the status of IQR interrupter pin
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
+ */
 {
 	return (HAL_GPIO_ReadPin(nRF24_H.IQR_GPIO_Port, nRF24_H.IQR_Pin));
 };
 
-/*
- *	TODO: FIll in comments
- */
+
 void nRF24_RX_ReadPayload(struct nRF24_Handle nRF24_H, uint8_t* rx_buffer, uint8_t buffer_size)
+/*
+ *	@brief Read top payload in RX FIFO
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
+ *	@param rx_buffer: output array
+ *
+ *	@param buffer_size: sizeof(rx_buffer)
+ *
+ */
 {
-	uint8_t RX_Empty = (nRF24_RegRead(nRF24_H, 0x17) & 0x01);	// Data in FIFO
-	uint8_t R_RX = 0x60;
-	if(!RX_Empty)
+	uint8_t RX_Empty = (nRF24_RegRead(nRF24_H, 0x17) & 0x01);
+	uint8_t payload_width = nRF24_RegRead(nRF24_H, R_RX_PL_WID);
+	if(!RX_Empty && (buffer_size >= payload_width))
 	{
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_RESET);	// Stop listening
 		HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_RESET);	// Select slave
@@ -186,22 +221,37 @@ void nRF24_RX_ReadPayload(struct nRF24_Handle nRF24_H, uint8_t* rx_buffer, uint8
 		HAL_GPIO_WritePin(nRF24_H.CE_GPIO_Port, nRF24_H.CE_Pin, GPIO_PIN_SET);	// Start listening
 		nRF24_RegWrite(nRF24_H, 0x07, 0x70);		// Clear interrupt
 	}
+	else
+	{
+		// TODO: Raise buffer size too small ERROR
+	}
 };
 
+
+uint8_t nRF24_RX_GetPayloadPipe(struct nRF24_Handle nRF24_H)
 /*
- *	TODO: Fill in comments
+ *	@brief Get the Data pipe number for the payload available for reading using nRF24_RX_ReadPayload
+ *		   000-101: Data pipe number
+ *		   110: Not used
+ *		   111: RX FIFO is empty
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info.
+ *
  */
-uint8_t nRF24_GetPayloadPipe(struct nRF24_Handle nRF24_H)
 {
 	uint8_t pipe_no = nRF24_RegRead(nRF24_H, 0x17);
 	pipe_no = ( (pipe_no & 0x0E) >> 1);
 	return pipe_no;
 };
 
+
+uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H)
 /*
+ *	@brief Return the RX FIFO status from register
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info.
  *
  */
-uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H)
 {
 	uint8_t Temp = nRF24_RegRead(nRF24_H, 0x17);
 	return (Temp & 0x01);
@@ -211,6 +261,8 @@ uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H)
 
 
 
+
+void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr)
 /*
  *	@brief Write the 5 byte data pipe identify address to reg_addr
  *
@@ -221,7 +273,6 @@ uint8_t nRF24_RX_DataInPipe(struct nRF24_Handle nRF24_H)
  *	@param pipe_addr: the pipe identify address
  *
  */
-void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr)
 {
 	if (sizeof(pipe_addr) > 3)
 	{
@@ -237,6 +288,8 @@ void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_
 	}
 };
 
+
+void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr)
 /*
  *	@brief Read the 5 byte data pipe identify address
  *
@@ -247,7 +300,6 @@ void nRF24_SetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_
  *	@param pipe_addr: a uint8_t pointer with at least 5 element (output)
  *
  */
-void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_t* pipe_addr)
 {
 	// TODO: add a array size check
 	if(pipe_addr)
@@ -263,6 +315,8 @@ void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_
 	}
 };
 
+
+void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t pipe_size)
 /*
  *	@brief Change the payload size of the data pipe (used in RX mode)
  *
@@ -271,15 +325,34 @@ void nRF24_GetDataPipeADDR(struct nRF24_Handle nRF24_H, uint8_t reg_addr, uint8_
  *	@param pipe_addr: from 0x11 to 0x16 (TODO: change this to enum)
  *
  *	@param pipe_size: 0 - 32 bytes (0: Pipe is closed)
+ *		   (!MUST BE THE SAME AS TX PAYLOAD SIZE!)
  *
  */
-void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8_t pipe_size)
 {
-	nRF24_RegWrite(nRF24_H, pipe_size, pipe_size);
+	if( 0x10 < pipe_addr && 0x17 > pipe_addr && pipe_size < 33)
+	{
+		nRF24_RegWrite(nRF24_H, pipe_size, pipe_size);
+	}
+	else
+	{
+		// TODO: Raise Error
+	}
+}
+
+uint8_t nRF24_GetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr)
+/*
+ *	@brief return the payload size of the data pipe (used in RX mode)
+ *
+ *	@param nRF24_H: nRF24 handler which contains all necessary pins info
+ *
+ *	@param pipe_addr: from 0x11 to 0x16 (TODO: change this to enum)
+ */
+{
+	return (nRF24_RegRead(nRF24_H, pipe_addr));
 }
 
 
-
+void nRF24_RegWrite(struct nRF24_Handle nRF24_H ,uint8_t address, uint8_t value)
 /*
  *  @brief Write value into the register address
  *
@@ -290,7 +363,6 @@ void nRF24_SetDataPipeSize(struct nRF24_Handle nRF24_H, uint8_t pipe_addr, uint8
  *  @param value: 8 byte value, *Least Significant Bit* first
  *
  */
-void nRF24_RegWrite(struct nRF24_Handle nRF24_H ,uint8_t address, uint8_t value)
 {
 	uint8_t W_address = address + 0x20;	// Add 32 to register address to write
 	HAL_GPIO_WritePin(nRF24_H.CSN_GPIO_Port, nRF24_H.CSN_Pin, GPIO_PIN_RESET);	// Select slave
